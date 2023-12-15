@@ -1,109 +1,26 @@
 import { expect } from "chai";
 import hre, { deployments, ethers } from "hardhat";
 import { Contract } from "ethers";
-import { deployContract, getFactory, getSafeProxyRuntimeCode } from "../utils/setup";
+import { getFactory, getSingleton1, getSingleton2, getSafeProxyRuntimeCode } from "../utils/setup";
 import { AddressZero } from "@ethersproject/constants";
 import { calculateProxyAddress } from "../../src/utils/proxies";
 
 describe("ProxyFactory experiments", () => {
-    const SINGLETON_SOURCE1 = `
-    contract Singleton1 {
-        address _singleton;
-        address public owner;
-        bool public isInitialized;
-
-        constructor() payable {
-            owner = msg.sender;
-        }
-
-        function init(address new_owner) public {
-            require(!isInitialized, "Is initialized");
-            owner = new_owner;
-            isInitialized = true;
-        }
-
-        function upgradeSingleton(address newImplementation) public {
-            require(isInitialized, "Not initialized");
-            require(msg.sender == owner, "Not owner");
-            _singleton = newImplementation;
-        }
-
-        // To be clear, SafeProxy catch masterCopy() call and return _singleton address
-        // so, this implementation is only used in direct call to Singleton1 contract
-        function masterCopy() public pure returns (address) {
-            return address(0);
-        }
-
-        // Makes call to another contract and return caller address
-        function makeCallToGetCallerAddress(Singleton1 callee) public view returns (address) {
-            return callee.getCallerAddress();
-        }
-
-        // Abstract implementation of getCallerAddress
-        function makeCallToGetCallerAddress2(address callee) public view returns (address) {
-            (bool success, bytes memory result) = callee.staticcall(abi.encodeWithSignature("getCallerAddress()"));
-            require(success, "Failed to call");
-            return abi.decode(result, (address));
-        }
-
-        function getCallerAddress() public view returns (address) {
-            return msg.sender;
-        }
-    }`;
-
-    const SINGLETON_SOURCE2 = `
-    contract Singleton2 {
-        // Variables from Singleton1 should stay on their place
-        address _singleton;
-        address public owner;
-        bool public isInitialized;
-
-        // New variables can be added after old ones
-        uint256 public value;
-
-        function masterCopy() public pure returns (address) {
-            return address(0);
-        }
-
-        function setValue(uint256 _value) public {
-            value = _value;
-        }
-
-        function getValue() public view returns (uint256) {
-            return value;
-        }
-
-        // Abstract implementation of getCallerAddress
-        function makeCallToGetCallerAddress2(address callee) public view returns (address) {
-            (bool success, bytes memory result) = callee.staticcall(abi.encodeWithSignature("getCallerAddress()"));
-            require(success, "Failed to call");
-            return abi.decode(result, (address));
-        }
-
-        function getCallerAddress() public view returns (address) {
-            return msg.sender;
-        }        
-    }`;
-
-
     const setupTests = deployments.createFixture(async ({ deployments }) => {
         await deployments.fixture();
         const signers = await ethers.getSigners();
         const [operator, user1, user2] = signers;
-        // Singletons deployed from operator
-        const singleton1 = await deployContract(operator, SINGLETON_SOURCE1);
-        const singleton2 = await deployContract(operator, SINGLETON_SOURCE2);
         return {
             factory: await getFactory(),
-            singleton1,
-            singleton2,
+            singleton1: await getSingleton1(),
+            singleton2: await getSingleton2(),
             operator,
             user1,
             user2        
         };
     });
 
-    describe("Singleton upgrade experiment with Singletons in raw sources", () => {
+    describe("Singleton upgrade experiment with Singletons in sol", () => {
         const saltNonce = 42;
 
         it("proxy initialization set user as owner", async () => {
@@ -260,6 +177,7 @@ describe("ProxyFactory experiments", () => {
             const proxy_s2 = singleton2.attach(proxyAddress1) as Contract;
 
             // Check that caller address is still the same
+            expect(await proxy_s2.makeCallToGetCallerAddress(proxy2.getAddress())).to.be.eq(proxyAddress1);
             expect(await proxy_s2.makeCallToGetCallerAddress2(proxy2.getAddress())).to.be.eq(proxyAddress1);
         });
     });

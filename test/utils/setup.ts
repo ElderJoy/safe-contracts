@@ -112,6 +112,16 @@ export const getMock = async () => {
     return await Mock.deploy();
 };
 
+export const getSingleton1 = async () => {
+    const Singleton1 = await hre.ethers.getContractFactory("Singleton1");
+    return await Singleton1.deploy();
+};
+
+export const getSingleton2 = async () => {
+    const Singleton2 = await hre.ethers.getContractFactory("Singleton2");
+    return await Singleton2.deploy();
+};
+
 export const getSafeTemplate = async (saltNumber: string = getRandomIntAsString()) => {
     const singleton = await getSafeSingleton();
     const singletonAddress = await singleton.getAddress();
