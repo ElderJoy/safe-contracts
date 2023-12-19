@@ -164,7 +164,7 @@ describe("ProxyFactory experiments", () => {
             const saltNonce1 = 41;
             const proxyAddress1 = await calculateProxyAddress(factory, singletonAddress1, initCode1, saltNonce1);
             await factory.createProxyWithNonce(singletonAddress1, initCode1, saltNonce1);
-            const proxy_s1 = singleton1.attach(proxyAddress1) as Contract;
+            const proxy1_s1 = singleton1.attach(proxyAddress1) as Contract;
 
             // Deploy proxy for Singleton1 with user1 as owner and saltNonce2 to calculate other unique proxy address
             const saltNonce2 = 42;
@@ -173,12 +173,12 @@ describe("ProxyFactory experiments", () => {
             const proxy2 = singleton1.attach(proxyAddress2) as Contract;
 
             // Upgrade Singleton1 to Singleton2
-            await proxy_s1.connect(user1).upgradeSingleton(singletonAddress2);
-            const proxy_s2 = singleton2.attach(proxyAddress1) as Contract;
+            await proxy1_s1.connect(user1).upgradeSingleton(singletonAddress2);
+            const proxy1_s2 = singleton2.attach(proxyAddress1) as Contract;
 
             // Check that caller address is still the same
-            expect(await proxy_s2.makeCallToGetCallerAddress(proxy2.getAddress())).to.be.eq(proxyAddress1);
-            expect(await proxy_s2.makeCallToGetCallerAddress2(proxy2.getAddress())).to.be.eq(proxyAddress1);
+            expect(await proxy1_s2.makeCallToGetCallerAddress(proxy2.getAddress())).to.be.eq(proxyAddress1);
+            expect(await proxy1_s2.makeCallToGetCallerAddress2(proxy2.getAddress())).to.be.eq(proxyAddress1);
         });
     });
 });
